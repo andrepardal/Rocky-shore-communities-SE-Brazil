@@ -1,5 +1,5 @@
 In this file, you will find 3 datasets used in the manuscript to run the multivariate analyses (PERMANOVA, DistLM, PCA, SIMPER) that were done in PRIMER software. Each dataset contains abundance data (percentage coverage) of taxa identified at a specific  shore level, either mid-midlittoral, low-midlittoral, or infralittoral fringe, and the environmental/anthropogenic variables used as potential predictors.
-The datasets are organised to be easely opened in PRIMER software.
+The datasets are organised to be easily opened in PRIMER software.
 
 column A = row names for PRIMER
 ACA	= articulated coralline algae (taxa)
