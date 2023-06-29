@@ -1,1 +1,41 @@
-In this file, you will find 3 datasets used in the manuscript to run the multivariate analyses (PERMANOVA, DistLM, PCA, SIMPER) that were done in PRIMER software. The datasets contain abundance data (percentage coverage) of taxa identified at different shore levels (mid-midlittoral, low-midlittoral, and infralittoral fringe) and environmental/anthropogenic variables.
+In this file, you will find 3 datasets used in the manuscript to run the multivariate analyses (PERMANOVA, DistLM, PCA, SIMPER) that were done in PRIMER software. Each dataset contains abundance data (percentage coverage) of taxa identified at a specific  shore level, either mid-midlittoral, low-midlittoral, or infralittoral fringe, and the environmental/anthropogenic variables used as potential predictors.
+The datasets are organised to be easely opened in PRIMER software.
+
+column A = row names for PRIMER
+ACA	= articulated coralline algae (taxa)
+filamentous	= filamentous algae (taxa)
+foliose	=	foliose algae (taxa)
+corticated	=	corticated algae (taxa)
+leathery	=	leathery algae (taxa)
+CCA	=	crustose coralline algae (taxa)
+sea_urchin	=	sea urchin (taxa) (NOT USED IN ANALYSES)
+Phragmatopoma	= reef-building	polychaete (taxa)
+P.perna	=	mussel (taxa)
+Megabalanus_sp.	=	barnacle (taxa)
+M.solisianus	=	mussel (taxa)
+T.stalactifera	=	barnacle (taxa)
+C.bisinuatus	=	barnacle (taxa)
+Crassostrea_sp.	=	oysters (taxa)
+Isognomon_bicolor	=	bivalve (taxa)
+sponge	=	poriferans (taxa)
+anemone	=	sea anemones (taxa)
+hidrozoan	=	hidrozoans (taxa)
+ascidian	=	ascidians (taxa)
+bare_rock	=	bare rock (not taxa)
+sand =	sand (not taxa)
+gravel	=	gravel (not taxa)
+n.i.	=	not identified taxa (taxa)
+sst_mean	=	sea surface temperature (satellite-borne)
+chla_mean	=	chorophyll-a concentration (satellite-borne)
+fwd_mean	=	freshwater discharge index (satellite-borne)
+wf_mean	= summed	wave fetch
+incl_mean	=	shore inclination
+roughness	=	shore roughness
+DNC	=	distance from nearest urban centre
+dens_km2	=	human density (NOT USED IN THE PAPER)
+pop_2017	=	human population (NOT USED IN THE PAPER)
+poc_mean	=	particulate organic carbon (satellite-borne)
+Rrs_645	=	Remote Sensing Reflectance band 645 (satellite-borne)
+region	=	regions (spatial predictor)
+subregion	=	subregions (spatial predictor)
+site	=	sites (spatial predictor)
