@@ -1,0 +1,595 @@
+---
+title: "Pardal et al. (2023) MER: Plotting the importance of predictors based on Random forest models"
+author: "ALPS"
+date: "6/12/2023"
+output: html_document
+---
+
+#### Loading packages
+```{r}
+## Setting working directory to source file location ##
+rstudioapi::getActiveDocumentContext
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+library(ggplot2)
+library(ggeffects)
+library(dplyr)
+library(ggpubr)
+library(readxl)
+```
+
+## Plotting importance of predictors based on random forest models:
+```{r Infralittoral fringe}
+
+pred_importance <- read_excel("RF-output.xlsx", sheet = 1)
+str(pred_importance)
+
+pred_importance <- pred_importance %>% 
+                        mutate_at(c(1:3), as.factor)
+str(pred_importance)
+
+pred_importance$predictor <- factor(pred_importance$predictor,  
+                               levels = c("roughness", "inclination", "wave fetch", "DNC", "FwD", "Chla","SST"))
+
+## ACA
+    aca_p1 <- ggplot(pred_importance %>% 
+                       filter(zone == "infralittoral fringe") %>% 
+                       filter(taxa == "ACA"), 
+                    aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(bquote ('ACA' ~ (R^2 ~ '= 71.2%' )))+
+      xlim(0, 17) +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+aca_p1       
+
+## CCA   
+cca_p1 <- ggplot(pred_importance %>%
+                   filter(zone == "infralittoral fringe") %>% 
+                   filter(taxa == "CCA"), 
+                 aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(bquote ('CCA' ~ (R^2 ~ '= 15.7%' )))+
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+cca_p1    
+
+## Corticated algae
+cort_p1 <- ggplot(pred_importance %>% 
+                    filter(zone == "infralittoral fringe") %>% 
+                    filter(taxa == "corticated"), 
+                  aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+ ggtitle(bquote ('Corticated algae' ~ (R^2 ~ '= 60.9%' )))+
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+cort_p1  
+
+## Leathery algae
+lty_p1 <- ggplot(pred_importance %>% 
+                    filter(zone == "infralittoral fringe") %>% 
+                    filter(taxa == "leathery"), 
+                  aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+ ggtitle(bquote ('Leathery algae' ~ (R^2 ~ '= 25.5%' )))+
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+lty_p1 
+
+## Foliose algae
+foli_p1 <- ggplot(pred_importance %>% 
+                    filter(zone == "infralittoral fringe") %>% 
+                    filter(taxa == "foliose"), 
+                  aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+  ggtitle(bquote ('Foliose algae' ~ (R^2 ~ '= 39.2%' )))+
+      scale_x_continuous(breaks = c(0,3,6,9), limits=c(0,9)) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size =9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+foli_p1  
+
+## Filamentous algae
+fila_p1 <- ggplot(pred_importance %>% 
+                    filter(zone == "infralittoral fringe") %>% 
+                    filter(taxa == "filamentous"), 
+                  aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+ ggtitle(bquote ('Filamentous algae' ~ (R^2 ~ '= 31.9%' )))+
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+fila_p1 
+
+## Perna perna - mussel
+pp_p1 <- ggplot(pred_importance %>% 
+                 filter(zone == "infralittoral fringe") %>% 
+                 filter(taxa == "P. perna"), 
+               aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(expression (italic('P. perna ')*'(R'^'2'*' = 76.0%)'))+ 
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size= 11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+pp_p1  
+
+## Reef-building polychaete Phragmatopoma
+worm_p1 <- ggplot(pred_importance %>% 
+                    filter(zone == "infralittoral fringe") %>% 
+                    filter(taxa == "Phragmatopoma sp."), 
+                  aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+ ggtitle(expression (italic('Phragmatopoma')~'sp. '*'(R'^'2'*' = 47.5%)'))+ 
+      scale_x_continuous(breaks = c(0,2,4,6,8,10), limits=c(0,10.5)) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+worm_p1  
+
+## Bare rock
+bare_p1 <- ggplot(pred_importance %>% 
+                   filter(zone == "infralittoral fringe") %>% 
+                   filter(taxa == "bare_rock"), 
+                 aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+ ggtitle(bquote ('Bare rock' ~ (R^2 ~ '= 27.2%' )))+
+      scale_x_continuous(breaks = c(0,2,4,6), limits=c(0,6)) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+bare_p1 
+
+## Canopy-forming algae
+canopy_p1 <- ggplot(pred_importance %>% 
+                      filter(zone == "infralittoral fringe") %>% 
+                      filter(taxa == "canopy"), 
+                    aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+ ggtitle(bquote ('Canopy-forming algae' ~ (R^2 ~ '= 51.4%' )))+
+      scale_x_continuous(breaks = c(0,3,6,9,12), limits=c(0, 12.7)) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+canopy_p1 
+
+## Turf-forming algae
+turf_p1 <- ggplot(pred_importance %>% 
+                   filter(zone == "infralittoral fringe") %>% 
+                   filter(taxa == "turf"), 
+                 aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+ ggtitle(bquote ('Turf-forming algae' ~ (R^2 ~ '= 52.4%' )))+
+      scale_x_continuous(breaks = c(0,2,4,6,8,10), limits=c(0,10.1)) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+turf_p1 
+
+## All suspensivores
+susp_p1 <- ggplot(pred_importance %>% 
+                   filter(zone == "infralittoral fringe") %>% 
+                   filter(taxa == "suspensivores"), 
+                 aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+ ggtitle(bquote ('All suspensivores' ~ (R^2 ~ '= 57.8%' )))+
+      scale_x_continuous(breaks = c(0,2,4,6,8,10), limits=c(0,11)) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+susp_p1
+
+IF_taxa <- ggarrange(pp_p1, aca_p1, cort_p1, worm_p1, foli_p1, fila_p1, 
+                     lty_p1, cca_p1, susp_p1, turf_p1, canopy_p1, bare_p1, 
+                     ncol = 4, nrow = 3, align = "hv")
+#IF_taxa
+
+#ggsave("submission/Ecography/RF_figs/IF-RF-Importance-final.svg", dpi = 400, width = 15.2, height = 9.3, units ="in")
+
+varhandle::rm.all.but(keep = c("pred_importance", "IF_taxa"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+#### Low-midlittoral
+```{r Low-midlittoral}
+
+## barnacle Tetraclita stalactifera
+    tet_p1 <- ggplot(pred_importance %>% 
+                       filter(zone == "low-midlittoral") %>% 
+                       filter(taxa == "T. stalactifera"),
+                    aes(y= predictor, x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(expression (italic('T. stalactifera ')*'(R'^'2'*' = 41.2%)'))+ 
+      scale_x_continuous(breaks = c(0,2,4,6,8,10), limits=c(0,10)) +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+tet_p1       
+
+## mussel Perna perna
+pp2_p1 <- ggplot(pred_importance %>% 
+                  filter(zone == "low-midlittoral") %>%
+                  filter(taxa == "P. perna"),
+                aes(y= (predictor), x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(expression (italic('P. perna ')*'(R'^'2'*' = 67.9%)'))+ 
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+pp2_p1 
+
+## mussel Mytilaster solisianus
+myt_p1 <- ggplot(pred_importance %>% 
+                   filter(zone == "low-midlittoral") %>% 
+                   filter(taxa == "M. solisianus"),
+                aes(y= (predictor), x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(expression (italic('M. solisianus ')*'(R'^'2'*' = 31.7%)'))+ 
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+myt_p1 
+
+##Reef-building polychaete Phragmatopoma
+worm2_p1 <- ggplot(pred_importance %>% 
+                    filter(zone == "low-midlittoral") %>% 
+                    filter(taxa == "Phragmatopoma sp."), 
+                  aes(y= (predictor), x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "")+ ggtitle(expression (italic('Phragmatopoma')~'sp. '*'(R'^'2'*' = 30.8%)'))+ 
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+worm2_p1 
+
+## Barnacle Chthamalus bisinuatus
+cht_p1 <- ggplot(pred_importance %>% 
+                filter(zone == "low-midlittoral") %>% 
+                filter(taxa == "C. bisinuatus"), 
+                aes(y= (predictor), x= imp_perc)) + 
+      #theme_void()+
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(expression (italic('C. bisinuatus ')*'(R'^'2'*' = 18.1%)'))+ 
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+cht_p1 
+
+## Oysters
+oyst <- ggplot(pred_importance %>% 
+                filter(zone == "low-midlittoral") %>% 
+                filter(taxa == "oysters"), 
+                aes(y= (predictor), x= imp_perc)) + 
+      #theme_void()+
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(expression (italic('Oysters ')*'(R'^'2'*' = 57.9%)'))+ 
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+oyst 
+
+## Bare rock
+bare_p1 <- ggplot(pred_importance %>% 
+                   filter(zone == "low-midlittoral") %>% 
+                   filter(taxa == "bare rock"), 
+                 aes(y= (predictor), x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(bquote ('Bare rock' ~ (R^2 ~ '= 48.3%' ))) +
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+bare_p1 
+
+## Turf-forming algae
+turf_p1 <- ggplot(pred_importance %>% 
+                   filter(zone == "low-midlittoral") %>% 
+                   filter(taxa == "turf"), 
+                 aes(y= (predictor), x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(bquote ('Turf-forming algae' ~ (R^2 ~ '= 35.8%' ))) +
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+turf_p1
+
+LM_taxa <- ggarrange(pp2_p1, oyst, tet_p1, myt_p1, worm2_p1, cht_p1, 
+                     turf_p1, bare_p1, ncol = 4, nrow = 3, align = "hv")
+#LM_taxa
+
+#ggsave("submission/Ecography/RF_figs/LM-RF-Importance-final.svg", dpi = 400, width = 15.2, height = 9.3, units ="in")
+
+varhandle::rm.all.but(keep = c("pred_importance", "IF_taxa", "LM_taxa"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+#### Mid-midlittoral
+```{r Mid-midlittoral}
+
+## Barnacle Tetraclita stalactifera
+    tet2_p1 <- ggplot(pred_importance %>% 
+                       filter(zone == "mid-midlittoral") %>% 
+                       filter(taxa == "T. stalactifera"), 
+                     aes(y= (predictor), x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(expression (italic('T. stalactifera ')*'(R'^'2'*' = 38.6%)'))+ 
+      scale_x_continuous(breaks = c(0,2,4,6,8,10), limits=c(0,10)) +
+      theme_minimal() +
+      theme(plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+tet2_p1       
+
+## mussel Mytilaster solisianus
+myt_p1 <- ggplot(pred_importance %>% 
+                   filter(zone == "mid-midlittoral") %>% 
+                   filter(taxa == "M. solisianus"), 
+                 aes(y= (predictor), x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(expression (italic('M. solisianus ')*'(R'^'2'*' = 63.0%)'))+ 
+      scale_x_continuous(breaks = c(0,5,10,15), limits=c(0,15)) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+myt_p1 
+
+## barnacle Chthamalus bisinuatus
+cht_p1 <- ggplot(pred_importance %>% 
+                  filter(zone == "mid-midlittoral") %>% 
+                  filter(taxa == "C. bisinuatus"), 
+                aes(y= (predictor), x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(expression (italic('C. bisinuatus ')*'(R'^'2'*' = 62.7%)'))+ 
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+cht_p1 
+
+## Bare rock
+bare2_p1 <- ggplot(pred_importance %>% 
+                     filter(zone == "mid-midlittoral") %>% 
+                     filter(taxa == "bare rock"), 
+                   aes(y= (predictor), x= imp_perc)) + 
+      geom_bar(stat="identity", color = "black", fill = "gray90") +
+      labs(x = "", y = "") + ggtitle(bquote ('Bare rock' ~ (R^2 ~ '= 66.8%' ))) +
+      #xlim(0, 0.21) +
+      theme_minimal() +
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
+        axis.text.x=element_text(size= 11, color = "black"),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.7,0.4,0.1,0.2,"cm"))
+bare2_p1 
+
+MidM_taxa <- ggarrange(myt_p1, cht_p1, tet2_p1, bare2_p1, ncol = 4, nrow = 3, align = "hv")
+#MidM_taxa
+
+varhandle::rm.all.but(keep = c("pred_importance", "IF_taxa", "LM_taxa", "MidM_taxa"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+
+RF_all_taxa <- ggarrange(MidM_taxa, LM_taxa, IF_taxa,
+                          ncol = 1, nrow = 3, align = "hv")
+RF_all_taxa
+
+#ggsave("RF_figs/Importance-RF-zones-Final.svg", dpi = 300, width = 15.2, height = 27.9, units ="in")
+```
+
+## The end =)
