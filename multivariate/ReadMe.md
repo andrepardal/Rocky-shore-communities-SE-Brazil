@@ -1,16 +1,16 @@
 In this file, you will find 3 datasets used in the manuscript to run the multivariate analyses (PERMANOVA, DistLM, PCA, SIMPER) that were done in PRIMER software. Each dataset contains abundance data (percentage coverage) of taxa identified at a specific  shore level, either mid-midlittoral, low-midlittoral, or infralittoral fringe, and the environmental/anthropogenic variables used as potential predictors.
 The datasets are organised to be easily opened in PRIMER software.
 
-column A = row names for PRIMER
-ACA	= articulated coralline algae (taxa)
-filamentous	= filamentous algae (taxa)
-foliose	=	foliose algae (taxa)
-corticated	=	corticated algae (taxa)
-leathery	=	leathery algae (taxa)
-CCA	=	crustose coralline algae (taxa)
-sea_urchin	=	sea urchin (taxa) (NOT USED IN ANALYSES)
-Phragmatopoma	= reef-building	polychaete (taxa)
-P.perna	=	mussel (taxa)
+column A   = row names for PRIMER
+ACA  	= articulated coralline algae (taxa)
+filamentous	  = filamentous algae (taxa)
+foliose	  =	foliose algae (taxa)
+corticated	  =	corticated algae (taxa)
+leathery	  =	leathery algae (taxa)
+CCA	  =	crustose coralline algae (taxa)
+sea_urchin	  =	sea urchin (taxa) (NOT USED IN ANALYSES)
+Phragmatopoma	  = reef-building	polychaete (taxa)
+P.perna	  =	mussel (taxa)
 Megabalanus_sp.	=	barnacle (taxa)
 M.solisianus	=	mussel (taxa)
 T.stalactifera	=	barnacle (taxa)
