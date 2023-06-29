@@ -1,0 +1,743 @@
+---
+title: "Pardal et al. (2023) MER: General community structure and other anlyses/plots done after 1st review"
+author: "ALPS"
+date: "6/13/2023"
+output: html_document
+---
+
+#### Loading packages
+```{r}
+## Setting working directory to source file location ##
+rstudioapi::getActiveDocumentContext
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+library(ggplot2)
+library(ggeffects)
+library(dplyr)
+library(ggpubr)
+library(readxl)
+library(data.table)
+```
+
+## Infralittoral fringe
+```{r Infralittoral fringe}
+
+df1           <- read_excel("infralittoral-fringe-data.xlsx", sheet = 1)
+str(df1)
+
+df1$site      <- as.factor(df1$site)
+df1$subregion <- as.factor(df1$subregion)
+df1$region    <- as.factor(df1$region)
+
+str(df1)
+
+df1 <- df1 %>% 
+       mutate_at(c(1:34), as.numeric)
+
+str(df1)
+
+### Calculate means per site and subregion
+df2 <- df1 %>% group_by(subregion, site) %>%
+                   summarise_at(c(1:6, 8:20), mean)
+
+## Convert dataframe from wide to long:
+df2_long <- data.table::melt(setDT(df2), id.vars = c("subregion", "site"), variable.name = "taxa")
+
+## Set order
+df2_long$subregion <- factor(df2_long$subregion, 
+                           levels=c('Baixada','SSCh', 'Ubatuba', 
+                                    'Green_Coast', 'Rio de Janeiro', 'Lakes'))
+## Set order
+df2_long$taxa <- factor(df2_long$taxa, 
+                           levels=c('ACA','filamentous', 'corticated', 'foliose', 'leathery', 'CCA', 'Phragmatopoma', 
+                                    'P.perna', 'M.solisianus', 'T.stalactifera', 'Megabalanus_sp.', 'C.bisinuatus',
+                                    'Crassostrea_sp.', 'Isognomon_bicolor', 'sponge','anemone', 'hidrozoan', 'ascidian', 'bare_rock'))
+## Plot
+infra <-
+ggplot(df2_long, aes(x = taxa, 
+                     y = value))+
+                     #group = subregion, 
+                     #color = subregion)) + 
+  theme_classic()+
+  geom_boxplot()+
+  stat_summary(fun.data="mean_se", 
+               fun.args = list(mult=0), 
+               geom="pointrange", size=.6, color= "red")+
+    
+  theme(axis.text.x = element_text(size=14, color="black", angle = 90, hjust = 1, vjust=.5), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+  labs(y = "percentage coverage",
+       x = "") +
+  theme(legend.position = "bottom") + 
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks.length = unit(4, "pt"))+
+  theme(legend.position = c(.02, .90),
+        legend.justification = c("left"),
+        legend.box.just = "left",
+        legend.margin = margin(0, 0, 0, 0)) +
+  theme(legend.title = element_text(color = "white", size = 5),
+        legend.text = element_text(color = "black", size=11)) +
+  theme(legend.position =  "none")
+
+infra
+
+labsNew <- c('ACA','filamentous algae', 'corticated algae', 'foliose algae', 'leathery algae', 'CCA', 'Phragmatopoma sp.',
+              'P. perna', 'M. solisianus', 'T. stalactifera', 'Megabalanus sp.', 'C. bisinuatus',
+              'oysters', 'Isognomon bicolor', 'poriferans','sea anemones', 'hidrozoans', 'ascidians', 'bare rock')
+
+infra2 <- infra + scale_x_discrete(labels= labsNew) + theme_minimal() + ylim(0, 100)+
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=12),
+        axis.text.x=element_text(size= 11, color = "black", angle = 90, hjust = 1, vjust=.5),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.1,0.1,0.1,0.1,"cm"))
+infra2
+
+varhandle::rm.all.but(keep = c("df2_long", "infra2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+## Low-midlittoral
+```{r Low-midlittoral}
+## load data
+df_LM        <- read_excel("low-midlittoral-data.xlsx", sheet = 1)
+str(df_LM)
+
+## organise variables
+df_LM$site      <- as.factor(df_LM$site)
+df_LM$subregion <- as.factor(df_LM$subregion)
+df_LM$region    <- as.factor(df_LM$region)
+
+str(df_LM)
+
+### Calculate means per site and subregion
+df_LM2 <- df_LM %>% group_by(subregion, site) %>%
+                     summarise_at(c(2:9, 11:19), mean)
+str(df_LM2)
+
+## create dummy variables for plotting:
+df_LM2$anemone   <- rep(0, 61)
+df_LM2$hidrozoan <- rep(0, 61)
+
+## Convert dataframe from wide to long:
+df_long2 <- data.table::melt(setDT(df_LM2), id.vars = c("subregion", "site"), variable.name = "taxa")
+
+## Set order
+df_long2$taxa <- factor(df_long2$taxa,                                    
+                           levels=c('ACA','filamentous', 'corticated', 'foliose', 'leathery', 'CCA', 'Phragmatopoma', 
+                                    'P.perna', 'M.solisianus', 'T.stalactifera', 'Megabalanus', 'C.bisinuatus',
+                                    'Crassostrea', 'Isognomon_bicolor', 'sponge','anemone', 'hidrozoan', 'ascidian', 'bare_rock'))        
+## Plot
+low_mid <-
+ggplot(df_long2, aes(x = taxa, 
+                     y = value))+
+                     #group = subregion, 
+                     #color = subregion)) + 
+  theme_classic()+
+  geom_boxplot()+
+  stat_summary(fun.data="mean_se", 
+               fun.args = list(mult=0), 
+               geom="pointrange", size=.6, color= "red")+
+    
+  theme(axis.text.x = element_text(size=14, color="black", angle = 90, hjust = 1, vjust=.5), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+  labs(y = "percentage coverage",
+       x = "") +
+  theme(legend.position = "bottom") + 
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks.length = unit(4, "pt"))+
+  theme(legend.position = c(.02, .90),
+        legend.justification = c("left"),
+        legend.box.just = "left",
+        legend.margin = margin(0, 0, 0, 0)) +
+  theme(legend.title = element_text(color = "white", size = 5),
+        legend.text = element_text(color = "black", size=11)) +
+  theme(legend.position =  "none")
+
+low_mid
+
+labsNew <- c('ACA','filamentous algae', 'corticated algae', 'foliose algae', 'leathery algae', 'CCA', 'Phragmatopoma sp.',
+              'P. perna', 'M. solisianus', 'T. stalactifera', 'Megabalanus sp.', 'C. bisinuatus',
+              'oysters', 'Isognomon bicolor', 'poriferans','sea anemones', 'hidrozoans', 'ascidians', 'bare rock')
+
+low_mid2 <- low_mid + scale_x_discrete(labels= labsNew) + theme_minimal() + ylim(0, 100)+
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=12),
+        axis.text.x=element_text(size= 11, color = "black", angle = 90, hjust = 1, vjust=.5),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.1,0.1,0.1,0.1,"cm"))
+
+low_mid2
+
+varhandle::rm.all.but(keep = c("df2_long", "infra2", "df_long2", "low_mid2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+## Mid-midlittoral
+```{r Mid-midlittoral}
+
+df_MM        <- read_excel("mid-midlittoral-data.xlsx", sheet = 1)
+str(df_MM)
+
+df_MM$site      <- as.factor(df_MM$site)
+df_MM$subregion <- as.factor(df_MM$subregion)
+df_MM$region    <- as.factor(df_MM$region)
+
+str(df_MM)
+
+### Calculate means per site and subregion
+df_MM2 <- df_MM %>% group_by(subregion, site) %>%
+                     summarise_at(c(2:14), mean)
+str(df_MM2)
+
+## create dummy variables for plotting:
+df_MM2$anemone           <- rep(0, 57)
+df_MM2$hidrozoan         <- rep(0, 57)
+df_MM2$leathery          <- rep(0, 57)
+df_MM2$Megabalanus_sp.   <- rep(0, 57)
+df_MM2$sponge            <- rep(0, 57)
+df_MM2$ascidian          <- rep(0, 57)
+
+## Convert dataframe from wide to long:
+df_long3 <- data.table::melt(setDT(df_MM2), id.vars = c("subregion", "site"), variable.name = "taxa")
+
+## Set order
+df_long3$taxa <- factor(df_long3$taxa, 
+                           levels=c('ACA','filamentous', 'corticated', 'foliose', 'leathery', 'CCA', 'Phragmatopoma', 
+                                    'P.perna', 'M.solisianus', 'T.stalactifera', 'Megabalanus_sp.', 'C.bisinuatus',
+                                    'Crassostrea_sp.', 'Isognomon_bicolor', 'sponge','anemone', 'hidrozoan', 'ascidian', 'bare_rock'))
+
+## Plot
+mid_mid <-
+ggplot(df_long3, aes(x = taxa, 
+                     y = value))+
+                     #group = subregion, 
+                     #color = subregion)) + 
+  theme_classic()+
+  geom_boxplot()+
+  stat_summary(fun.data="mean_se", 
+               fun.args = list(mult=0), 
+               geom="pointrange", size=.6, color= "red")+
+    
+  theme(axis.text.x = element_text(size=14, color="black", angle = 90, hjust = 1, vjust=.5), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+  labs(y = "percentage coverage",
+       x = "") +
+  theme(legend.position = "bottom") + 
+  theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+  theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+  theme(axis.ticks.length = unit(4, "pt"))+
+  theme(legend.position = c(.02, .90),
+        legend.justification = c("left"),
+        legend.box.just = "left",
+        legend.margin = margin(0, 0, 0, 0)) +
+  theme(legend.title = element_text(color = "white", size = 5),
+        legend.text = element_text(color = "black", size=11)) +
+  theme(legend.position =  "none")
+
+mid_mid
+
+labsNew <- c('ACA','filamentous algae', 'corticated algae', 'foliose algae', 'leathery algae', 'CCA', 'Phragmatopoma sp.',
+              'P. perna', 'M. solisianus', 'T. stalactifera', 'Megabalanus sp.', 'C. bisinuatus',
+              'oysters', 'Isognomon bicolor', 'poriferans','sea anemones', 'hidrozoans', 'ascidians', 'bare rock')
+
+mid_mid2 <- mid_mid + scale_x_discrete(labels= labsNew) + theme_minimal() + ylim(0, 100)+
+      theme(
+        plot.title = element_text(size = 11, hjust=0.0),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=12),
+        axis.text.x=element_text(size= 11, color = "black", angle = 90, hjust = 1, vjust=.5),
+        axis.text.y=element_text(size = 11, color= "black"), 
+        strip.text = element_text(size = 9),
+        axis.ticks=element_line(size=0.4, color="black"),
+        plot.background=element_blank(),
+        panel.border=element_blank(),
+        plot.margin=margin(0.1,0.1,0.1,0.1,"cm"))
+
+mid_mid2
+
+varhandle::rm.all.but(keep = c("df2_long", "infra2", "df_long2", "low_mid2", "df_long3", "mid_mid2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+
+## Arrange figs
+all_levels <- ggarrange(mid_mid2, low_mid2, infra2, ncol = 1, nrow = 3, align = "hv")
+all_levels
+
+#ggsave("RF_figs/Taxa-levels2.svg", dpi=300, width=5.85, height=11.8, units= "in") # Saving 5.85 x 11.8 in image
+```
+## The end =)
+
+## For review (dealing with shore inclination)
+#### Loading packages
+```{r}
+## Setting working directory to source file location ##
+rstudioapi::getActiveDocumentContext
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+library(ggplot2)
+library(ggeffects)
+library(dplyr)
+library(ggpubr)
+library(readxl)
+library(data.table)
+
+df1          <- read_excel("communities_inclination.xlsx", sheet = 1)
+str(df1)
+
+df1$site      <- as.factor(df1$site)
+df1$replicate  <- as.factor(df1$replicate)
+
+str(df1)
+
+## Convert dataframe from wide to long:
+df_long <- data.table::melt(setDT(df1), id.vars = c("site", "replicate"), variable.name = "level")
+str(df_long)
+
+df_site <- df_long %>% 
+            group_by(site) %>% 
+               summarise(inc_mean = mean(value, na.rm = T))
+
+df_infra <- df_long %>% 
+               filter(level == "infra") %>% 
+                 group_by(site) %>% 
+                  summarise(inc_infra = mean(value, na.rm = T))
+
+df_low <- df_long %>% 
+               filter(level == "low_mid") %>% 
+                 group_by(site) %>% 
+                  summarise(inc_low = mean(value, na.rm = T))
+
+df_mid <- df_long %>% 
+              filter(level == "mid_mid") %>% 
+               group_by(site) %>% 
+                summarise(inc_mid = mean(value, na.rm = T))
+
+df_site$inc_infra <- df_infra$inc_infra
+df_site$inc_low   <- df_low$inc_low
+df_site$inc_mid   <- df_mid$inc_mid
+
+## Infralittoral fringe
+lm1 <- lm(inc_infra ~ inc_mean, data = df_site)
+summary(lm1)
+
+hist(df_site$inc_mean)
+hist(df_site$inc_infra)
+cor(df_site$inc_mean, df_site$inc_infra,  method = "pearson", use = "complete.obs")
+## Pearson's correlation = 0.82
+
+## Low-midlittoral
+lm2 <- lm(inc_low ~ inc_mean, data = df_site)
+summary(lm2)
+
+hist(df_site$inc_mean)
+hist(df_site$inc_low)
+cor(df_site$inc_mean, df_site$inc_low,  method = "pearson", use = "complete.obs")
+## Pearson's correlation = 0.8653
+
+## Mid-midlittoral
+lm3 <- lm(inc_mid ~ inc_mean, data = df_site)
+summary(lm2)
+
+hist(df_site$inc_mean)
+hist(df_site$inc_mid)
+cor(df_site$inc_mean, df_site$inc_mid,  method = "pearson", use = "complete.obs")
+## Pearson's correlation = 0.7912
+```
+
+## Plots inclinaton
+```{r plots inclination}
+
+plot1 <- ggplot(df_site, aes(x = inc_mean, y = inc_infra))+
+                 geom_point(size = 3, color = "palegreen3") + 
+        theme_minimal() + geom_smooth(method = "lm", se = T)+
+        theme(axis.text.x = element_text(size=12, color="black"), 
+              axis.text.y = element_text(size=12, color="black"),
+              axis.title.x = element_text(color="black", size=14),
+               axis.title.y = element_text(color="black", size=14))+
+         labs(y = "",  x = "site inclination") + 
+              ggtitle("(C) infralittoral fringe") +
+         theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+         theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+         theme(axis.ticks.length = unit(4, "pt")) 
+plot1
+
+## Low-midlittoral
+plot2 <- ggplot(df_site, aes(x = inc_mean, y = inc_low))+
+                 geom_point(size = 3, color = "deepskyblue1") + 
+        theme_minimal() + geom_smooth(method = "lm", se = T)+
+        theme(axis.text.x = element_text(size=12, color="black"), 
+              axis.text.y = element_text(size=12, color="black"),
+              axis.title.x = element_text(color="black", size=14),
+               axis.title.y = element_text(color="black", size=14))+
+         labs(y = "shore level inclination", x = "") +
+                ggtitle("(B) low-midlittoral") +
+         theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+         theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+         theme(axis.ticks.length = unit(4, "pt")) 
+plot2
+
+## Mid-midlittoral
+plot3 <- ggplot(df_site, aes(x = inc_mean, y = inc_mid))+
+                 geom_point(size = 3, color = "mediumpurple") + 
+        theme_minimal() + geom_smooth(method = "lm", se = T)+
+        theme(axis.text.x = element_text(size=12, color="black"), 
+              axis.text.y = element_text(size=12, color="black"),
+              axis.title.x = element_text(color="black", size=14),
+               axis.title.y = element_text(color="black", size=14))+
+         labs(y = "", x = "") +
+                  ggtitle("(A) mid-midlittoral") +
+         theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+         theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+         theme(axis.ticks.length = unit(4, "pt")) 
+plot3
+
+## Arrange figs
+plots_all <- ggarrange(plot3, plot2, plot1, ncol = 1, nrow = 3, align = "hv")
+plots_all
+
+#ggsave("RF_figs/inclination_levels.png", dpi=300)#, width=5.85, height=11.8, units= "in") # Saving 5.85 x 11.8 in image
+```
+
+## For review
+```{r Correlations mean coverage vs. N per site - Infralittoral fringe}
+
+## Setting working directory to source file location ##
+rstudioapi::getActiveDocumentContext
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+library(ggplot2)
+library(ggeffects)
+library(dplyr)
+library(ggpubr)
+library(readxl)
+library(data.table)
+
+df1           <- read_excel("infralittoral-fringe-data.xlsx", sheet = 1)
+df1$site      <- as.factor(df1$site)
+df1$subregion <- as.factor(df1$subregion)
+df1$region    <- as.factor(df1$region)
+
+df1 <- df1 %>% 
+       mutate_at(c(1:34), as.numeric)
+
+df1$turf   <- (df1$ACA + df1$filamentous + df1$foliose +df1$CCA)## turf-forming algae
+df1$canopy <- (df1$corticated + df1$leathery) ## canopy-forming algae
+df1$inv    <- (df1$Phragmatopoma + df1$P.perna + df1$Megabalanus_sp. +df1$M.solisianus +
+               df1$T.stalactifera +df1$C.bisinuatus + df1$Crassostrea_sp. + df1$Isognomon_bicolor + 
+               df1$sponge + df1$hidrozoan + df1$ascidian) ## all suspensivores
+str(df1)
+
+### New dataframe with site-averaged coverage
+df_new <- df1 %>%
+            group_by(site) %>%
+              summarise_at(c(1:6, 8:9, 20, 37:39), mean)
+
+### New dataframe with number of samples per site
+df_N   <- df1 %>%
+            group_by(site) %>%
+              summarise_at(c(1:6, 8:9, 20, 37:39), length)
+
+### Convert wide to long format
+df_long1 <- data.table::melt(setDT(df_new), id.vars = c("site"), variable.name = "taxa")
+df_long2 <- data.table::melt(setDT(df_N),   id.vars = c("site"), variable.name = "Nsite")
+
+### Join N in the dataframe with mean coverage
+df_long1$Nsite <- df_long2$value
+
+### Set facet labels
+taxa.labs <- c("ACA", "filamentous", "foliose", "corticated", "leathery", "CCA", 
+              "Phragmatopoma sp.", "P. perna", "bare rock", "turf-forming algae", "canopy-forming algae", 
+              "all suspensivores")
+
+names(taxa.labs) <- c("ACA", "filamentous", "foliose", "corticated", "leathery", "CCA", 
+                      "Phragmatopoma", "P.perna", "bare_rock", "turf", "canopy", "inv")
+
+## Plot
+infra_corr <-
+ggplot(df_long1, aes(x = Nsite, y = value))+
+                 geom_point(size = 2, color = "mediumpurple") + 
+        theme_minimal() + geom_smooth(method = "lm", se = T)+
+        theme(axis.text.x = element_text(size=12, color="black"), 
+              axis.text.y = element_text(size=12, color="black"),
+              axis.title.x = element_text(color="black", size=14),
+               axis.title.y = element_text(color="black", size=14))+
+         labs(y = "Mean coverage", x = "Replicates per site") + 
+       facet_wrap(~taxa, labeller = labeller(taxa = taxa.labs))+
+                  ggtitle("(C) infralittoral fringe") +
+         theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+         theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+         theme(axis.ticks.length = unit(4, "pt")) + 
+         scale_x_continuous(breaks = c(6,8,10,12), limits=c(6,12)) +
+      ggpubr::stat_cor(p.accuracy = 0.01, r.accuracy = 0.01)
+infra_corr
+
+## Group all taxa per site (mean) ##
+df_new2 <- df1 %>%
+            group_by(site) %>%
+              summarise_at(c(1:6, 8:19), mean)
+
+## Convert values to either 0 or 1 ##
+df_new3 <- df_new2 %>%
+               mutate_at(c(2:19),  function(x) 
+                case_when(x == 0 ~ 0, 
+                          x  > 0 ~ 1))
+
+## Summing up rows to get number of taxa identified per site ##
+df_new3 <- df_new3 %>% 
+               as_tibble() %>% 
+                mutate(sum = rowSums(across(where(is.numeric))))
+
+## Get N per site, N taxa ##
+df4 <- as.data.frame(cbind(df_N$ACA, df_new3$sum))
+
+## Get sites ##
+df4$site <- df_N$site
+
+## Plotting
+taxa_Ninfra <-
+ggplot(df4, aes(x = as.integer(V1), y = as.integer(V2)))+
+                 geom_point(size = 3, color = "mediumpurple") + 
+        theme_minimal() + geom_smooth(method = "lm", se = T)+
+        theme(axis.text.x =  element_text(size=12, color="black"), 
+              axis.text.y =  element_text(size=12, color="black"),
+              axis.title.x = element_text(color="black", size=14),
+              axis.title.y = element_text(color="black", size=14))+
+         labs(y = "", 
+              x = "Replicates per site") + 
+                  ggtitle("(C) infralittoral fringe") +
+         theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+         theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+         theme(axis.ticks.length = unit(4, "pt")) + 
+       scale_x_continuous(breaks = c(6,8,10,12), limits=c(6,12)) +
+       ggpubr::stat_cor(p.accuracy = 0.01, r.accuracy = 0.01) +ylim(0,15)
+
+taxa_Ninfra
+
+varhandle::rm.all.but(keep = c("df1", "infra_corr", "taxa_Ninfra"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+## Low-midlittoral
+```{r Correlations mean coverage vs. N per site - Low-midlittoral}
+
+df2<- read_excel("low-midlittoral-data.xlsx", sheet = 1)
+df2$site      <- as.factor(df2$site)
+df2$subregion <- as.factor(df2$subregion)
+df2$region    <-as.factor(df2$region)
+
+df2 <- df2 %>% 
+       mutate_at(c(4:34), as.numeric)
+df2$turf <- (df2$ACA + df2$filamentous + df2$foliose + df2$CCA)
+str(df2)
+
+### New dataframe with site-averaged coverage
+df_new <- df2 %>%
+            group_by(site) %>%
+              summarise_at(c(3:8,20, 34), mean)
+
+### New dataframe with number of samples per site
+df_N   <- df2 %>%
+            group_by(site) %>%
+              summarise_at(c(3:8, 20, 34), length)
+
+### Convert wide to long format
+df_long1 <- data.table::melt(setDT(df_new), id.vars = c("site"), variable.name = "taxa")
+df_long2 <- data.table::melt(setDT(df_N),   id.vars = c("site"), variable.name = "Nsite")
+
+### Join N in the dataframe with mean coverage
+df_long1$Nsite <- df_long2$value
+
+### Set facet labels
+taxa.labs <- c("T. stalactifera", "M. solisianus", "Oysters", "P. perna", 
+                      "C. bisinuatus", "Phragmatopoma sp.", "bare rock", "turf-forming algae")
+
+names(taxa.labs) <- c("T.stalactifera", "M.solisianus", "Crassostrea", "P.perna", 
+                      "C.bisinuatus", "Phragmatopoma", "bare_rock", "turf")
+
+## Plot
+lowmid_corr <-
+ggplot(df_long1, aes(x = Nsite, y = value))+
+                 geom_point(size = 2, color = "mediumpurple") + 
+        theme_minimal() + geom_smooth(method = "lm", se = T)+
+        theme(axis.text.x = element_text(size=12, color="black"), 
+              axis.text.y = element_text(size=12, color="black"),
+              axis.title.x = element_text(color="black", size=14),
+               axis.title.y = element_text(color="black", size=14))+
+         labs(y = "Mean coverage", x = "Replicates per site") + 
+       facet_wrap(~taxa, ncol = 4, labeller = labeller(taxa = taxa.labs))+
+                  ggtitle("(B) low-midlittoral") +
+         theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+         theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+         theme(axis.ticks.length = unit(4, "pt")) +
+         scale_x_continuous(breaks = c(6,8,10,12), limits=c(6,12)) +
+          scale_y_continuous(breaks = c(0,25,50,75,100), limits=c(-8,100)) +
+      ggpubr::stat_cor(p.accuracy = 0.01, r.accuracy = 0.01)
+lowmid_corr
+
+## Group all taxa per site (mean) ##
+df_new2 <- df2 %>%
+            group_by(site) %>%
+              summarise_at(c(3:10, 12:19), mean)
+
+## Convert values to either 0 or 1 ##
+df_new3 <- df_new2 %>%
+               mutate_at(c(2:17),  function(x) 
+                case_when(x == 0 ~ 0, 
+                          x  > 0 ~ 1))
+
+## Summing up rows to get number of taxa identified per site ##
+df_new3 <- df_new3 %>% 
+               as_tibble() %>% 
+                mutate(sum = rowSums(across(where(is.numeric))))
+
+## Get N per site, N taxa ##
+df4 <- as.data.frame(cbind(df_N$T.stalactifera, df_new3$sum))
+
+## Get sites ##
+df4$site <- df_N$site
+
+## Plotting
+taxa_Nlowmid <-
+ggplot(df4, aes(x = as.integer(V1), y = as.integer(V2)))+
+                 geom_point(size = 3, color = "mediumpurple") + 
+        theme_minimal() + geom_smooth(method = "lm", se = T)+
+        theme(axis.text.x =  element_text(size=12, color="black"), 
+              axis.text.y =  element_text(size=12, color="black"),
+              axis.title.x = element_text(color="black", size=14),
+              axis.title.y = element_text(color="black", size=14))+
+         labs(y = "Number of identified taxa", 
+              x = "") + 
+                  ggtitle("(B) low-midlittoral") +
+         theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+         theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+         theme(axis.ticks.length = unit(4, "pt")) + 
+        scale_x_continuous(breaks = c(6,8,10,12), limits=c(6,12)) +
+      ggpubr::stat_cor(p.accuracy = 0.01, r.accuracy = 0.01)
+
+taxa_Nlowmid
+
+varhandle::rm.all.but(keep = c("df1", "df2", "infra_corr", "lowmid_corr","taxa_Ninfra", "taxa_Nlowmid"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+## Mid-midlittoral
+```{r Correlations mean coverage vs. N per site - Mid-midlittoral}
+
+df3 <- read_excel("mid-midlittoral-data.xlsx", sheet = 1)
+df3$site      <- as.factor(df3$site)
+df3$subregion <- as.factor(df3$subregion)
+df3$region    <- as.factor(df3$region)
+
+df3 <- df3 %>% 
+       mutate_at(c(4:29), as.numeric)
+
+str(df3)
+
+### New dataframe with site-averaged coverage
+df_new <- df3 %>%
+            group_by(site) %>%
+              summarise_at(c(3:5,15), mean)
+
+### New dataframe with number of samples per site
+df_N   <- df3 %>%
+            group_by(site) %>%
+              summarise_at(c(3:5,15), length)
+
+### Convert wide to long format
+df_long1 <- data.table::melt(setDT(df_new), id.vars = c("site"), variable.name = "taxa")
+df_long2 <- data.table::melt(setDT(df_N),   id.vars = c("site"), variable.name = "Nsite")
+
+### Join N in the dataframe with mean coverage
+df_long1$Nsite <- df_long2$value
+
+### Set facet labels
+taxa.labs <- c("M. solisianus",  "C. bisinuatus", "T. stalactifera", "bare rock")
+
+names(taxa.labs) <- c("M.solisianus",  "C.bisinuatus", "T.stalactifera", "bare_rock")
+
+## Plot
+midMid_corr <-
+ggplot(df_long1, aes(x = as.integer(Nsite), y = value))+
+                 geom_point(size = 2, color = "mediumpurple") + 
+        theme_minimal() + geom_smooth(method = "lm", se = T)+
+        theme(axis.text.x = element_text(size=12, color="black"), 
+              axis.text.y = element_text(size=12, color="black"),
+              axis.title.x = element_text(color="black", size=14),
+               axis.title.y = element_text(color="black", size=14))+
+         labs(y = "Mean coverage", x = "Replicates per site") + 
+       facet_wrap(~taxa, ncol = 4, labeller = labeller(taxa = taxa.labs))+
+                  ggtitle("(A) mid-midlittoral") +
+         theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+         theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+         theme(axis.ticks.length = unit(4, "pt")) + 
+         scale_x_continuous(breaks = c(6,8,10,12), limits=c(6,12)) +
+      ggpubr::stat_cor(p.accuracy = 0.01, r.accuracy = 0.01)
+midMid_corr
+
+## Group all taxa per site (mean) ##
+df_new2 <- df3 %>%
+            group_by(site) %>%
+              summarise_at(c(3:14), mean)
+
+## Convert values to either 0 or 1 ##
+df_new3 <- df_new2 %>%
+               mutate_at(c(2:13),  function(x) 
+                case_when(x == 0 ~ 0, 
+                          x  > 0 ~ 1))
+
+## Summing up rows to get number of taxa identified per site ##
+df_new3 <- df_new3 %>% 
+               as_tibble() %>% 
+                mutate(sum = rowSums(across(where(is.numeric))))
+
+## Get N per site, N taxa ##
+df4 <- as.data.frame(cbind(df_N$T.stalactifera, df_new3$sum))
+
+## Get sites ##
+df4$site <- df_N$site
+
+## Plotting
+taxa_NMidMid <-
+ggplot(df4, aes(x = as.integer(V1), y = as.integer(V2)))+
+                 geom_point(size = 3, color = "mediumpurple") + 
+        theme_minimal() + geom_smooth(method = "lm", se = T)+
+        theme(axis.text.x =  element_text(size=12, color="black"), 
+              axis.text.y =  element_text(size=12, color="black"),
+              axis.title.x = element_text(color="black", size=14),
+              axis.title.y = element_text(color="black", size=14))+
+         labs(y = "", 
+              x = "") + 
+                  ggtitle("(A) mid-midlittoral") +
+         theme(axis.ticks = element_line(colour = "black", size = 0.8)) +
+         theme(axis.line = element_line(colour = 'black', size = 0.8)) +
+         theme(axis.ticks.length = unit(4, "pt")) + 
+      scale_x_continuous(breaks = c(6,8,10,12), limits=c(6,12)) +
+    ggpubr::stat_cor(p.accuracy = 0.01, r.accuracy = 0.01) 
+
+taxa_NMidMid
+
+corr_cover <- ggarrange(midMid_corr,lowmid_corr,infra_corr, ncol = 1, nrow = 3, heights = c(.4,.66,.87),align = "hv")
+corr_cover
+
+#ggsave("RF_figs/Correlations_Mean_Cover.png", dpi = 300, width = 7.96, height = 11.8, units = "in")
+
+corr_Ntaxa <- ggarrange(taxa_NMidMid,taxa_Nlowmid,taxa_Ninfra, ncol = 1, nrow = 3,align = "hv")
+corr_Ntaxa
+
+#ggsave("RF_figs/Correlations-N-Taxa.png", dpi = 300, width = 3.79, height = 6.68, units = "in")
+```

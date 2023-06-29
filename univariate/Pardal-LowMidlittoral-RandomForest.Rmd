@@ -1,0 +1,1233 @@
+---
+title: "Pardal et al. (2023) MER: Random forest models for the communities from the low-midlittoral"
+author: "ALPS"
+date: "6/12/2023"
+output: html_document
+---
+
+#### Loading packages
+```{r}
+## Setting working directory to source file location ##
+rstudioapi::getActiveDocumentContext
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+library(ggplot2)
+library(MASS)
+library(ggeffects)
+library(dplyr)
+library(ggpubr)
+library(tidyverse)
+library(openxlsx)  
+library(readxl)
+library(lattice)
+library(grid)
+library(gridExtra)
+library(tidyr)
+library(viridis)
+library(viridisLite)
+library(ranger)
+library(Rcpp)
+library(vip)
+library(pdp)
+```
+
+#### Low-Midlittoral
+```{r low-midlittoral}
+
+df2<- read_excel("low-midlittoral-data.xlsx", sheet = 1)
+str(df2)
+
+df2$site      <- as.factor(df2$site)
+df2$subregion <- as.factor(df2$subregion)
+df2$region    <-as.factor(df2$region)
+
+df2 <- df2 %>% 
+       mutate_at(c(4:34), as.numeric)
+
+str(df2)
+
+df2_N <- aggregate(CCA ~ site, data = df2, length)
+## Check N per site to make sure there are no dummies ##
+rm(df2_N)
+```
+
+#### Low-Midlittoral: barnacle Tetraclita
+```{r barnacle Tetraclita stalactifera}
+
+# Get only Tetraclita coverage and environmental predictors:
+tet_data <- subset(df2, select = c(4, 25:31))
+tet_data <- as.data.frame(tet_data)
+str(tet_data)
+
+# train a default random forest model
+  tet_rf1 <- ranger(
+  formula = T.stalactifera ~ ., 
+  data = tet_data,
+  num.trees = 2500,
+  importance = "permutation",
+  seed = 1238)
+
+print(tet_rf1)
+(default_rmse <- sqrt(tet_rf1$prediction.error))# get OOB RMSE for further comparison ##
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  mtry = c(2:6),
+  min.node.size = c(1, 3, 5, 10, 15), 
+  replace = c(TRUE, FALSE),                               
+  sample.fraction = c(.5, .63, .8),                       
+  rmse = NA)
+
+# execute full cartesian grid search
+for(i in seq_len(nrow(hyper_grid))) {
+  # fit model for ith hyperparameter combination
+  fit <- ranger(
+    formula         = T.stalactifera ~ ., 
+    data            = tet_data, 
+    num.trees       = 2500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$min.node.size[i],
+    replace         = hyper_grid$replace[i],
+    sample.fraction = hyper_grid$sample.fraction[i],
+    verbose         = FALSE,
+    seed            = 123,
+    #respect.unordered.factors = F,
+  )
+  # export OOB error 
+  hyper_grid$rmse[i] <- sqrt(fit$prediction.error)
+}
+
+# assess top 10 models
+hyper_grid %>%
+  arrange(rmse) %>%
+  mutate(perc_gain = (default_rmse - rmse) / default_rmse * 100) %>%
+  head(10)
+
+# re-run model -- as there was no significant improve, go with default parameters ##
+tet_rf2 <- ranger(
+  formula = T.stalactifera ~ ., 
+  data = tet_data, 
+  num.trees = 2500,
+  mtry = 2,
+  min.node.size = 5,
+  sample.fraction = .63,
+  replace = TRUE,
+  importance = "permutation",
+  verbose = FALSE,
+  seed  = 1238)
+
+print(tet_rf2)
+tet_rf2[["variable.importance"]]
+vip::vip(tet_rf2, num_features = 10, bar = FALSE)
+
+### Partial plots figs:
+tet1 <- tet_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "sst_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "T. stalactifera", xlab = "SST") +
+        theme_light() + #ylim(18, 36) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+tet2 <- tet_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "chla_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "T. stalactifera", xlab = "Chla") +
+        theme_light() +  #ylim(18, 36) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+tet3 <- tet_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "fwd_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "T. stalactifera", xlab = "FwD") +
+        theme_light() + #ylim(18, 36) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+tet4 <- tet_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "wf_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "T. stalactifera", xlab = "WF") +
+        theme_light() +  #ylim(18, 36) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+tet5 <- tet_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "DNC", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "T. stalactifera", xlab = "DNC") +
+        theme_light() + #ylim(18, 36) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+tet6 <- tet_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "roughness", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "T. stalactifera", xlab = "roughness") +
+        theme_light() + #ylim(18, 36) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+tet7 <- tet_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "incl_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "T. stalactifera", xlab = "inclination") +
+        theme_light() + #ylim(18, 36) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+tet_all <- ggarrange(tet1, tet2, tet3, tet4, tet5, tet6, tet7, ncol = 3, nrow = 3, align = "hv")
+tet_all
+
+#ggsave("submission/Ecography/RF_figs/LM/LM-Tetraclita.png", dpi = 300, width = 11.7, height = 8.14, units = "in")
+
+varhandle::rm.all.but(keep = c("df2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+#### Low-Midlittoral: mussel Mytilaster solisianus
+```{r mussel M. solisianus}
+
+myt_data <- subset(df2, select = c(5, 25:31))
+myt_data <- as.data.frame(myt_data)
+str(myt_data)
+
+# train a default random forest model
+  myt_rf1 <- ranger(
+  formula = M.solisianus ~ ., 
+  data = myt_data,
+  num.trees = 2500,
+  importance = "permutation",
+  seed = 4558)
+
+print(myt_rf1)
+(default_rmse <- sqrt(myt_rf1$prediction.error))# get OOB RMSE for further comparison ##
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  mtry = c(2:6),
+  min.node.size = c(1, 3, 5, 10, 15), 
+  replace = c(TRUE, FALSE),                               
+  sample.fraction = c(.5, .63, .8),                       
+  rmse = NA)
+
+# execute full cartesian grid search
+for(i in seq_len(nrow(hyper_grid))) {
+  # fit model for ith hyperparameter combination
+  fit <- ranger(
+    formula         = M.solisianus ~ ., 
+    data            = myt_data, 
+    num.trees       = 2500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$min.node.size[i],
+    replace         = hyper_grid$replace[i],
+    sample.fraction = hyper_grid$sample.fraction[i],
+    verbose         = FALSE,
+    seed            = 123,
+    #respect.unordered.factors = F,
+  )
+  # export OOB error 
+  hyper_grid$rmse[i] <- sqrt(fit$prediction.error)}
+
+# assess top 10 models
+hyper_grid %>%
+  arrange(rmse) %>%
+  mutate(perc_gain = (default_rmse - rmse) / default_rmse * 100) %>%
+  head(10)
+
+# re-run model -- as there was no significant improve, go with default parameters ##
+ myt_rf2 <- ranger(
+  formula = M.solisianus ~ ., 
+  data = myt_data, 
+  num.trees = 2500,
+  mtry = 2,
+  min.node.size = 5,
+  sample.fraction = .63,
+  replace = T,
+  importance = "permutation",
+  verbose = FALSE,
+  seed  = 1238)
+
+print(myt_rf2)
+myt_rf2[["variable.importance"]]
+vip::vip(myt_rf2, num_features = 10, bar = FALSE)
+
+### Partial plots figs:
+myt1 <- myt_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "sst_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "M. solisianus", xlab = "SST") +
+        theme_light() + #ylim(4, 15) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+myt2 <- myt_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "chla_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "M. solisianus", xlab = "Chla") +
+        theme_light() + #ylim(4, 15) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+myt3 <- myt_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "fwd_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "M. solisianus", xlab = "FwD") +
+        theme_light() +  #ylim(4, 15) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+myt4 <- myt_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "wf_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "M. solisianus", xlab = "WF") +
+        theme_light() +   #ylim(4, 15) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+myt5 <- myt_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "DNC", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "M. solisianus", xlab = "DNC") +
+        theme_light() + #ylim(4, 15) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+myt6 <- myt_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "roughness", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "M. solisianus", xlab = "roughness") +
+        theme_light() + #ylim(4, 15) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+myt7 <- myt_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "incl_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "M. solisianus", xlab = "inclination") +
+        theme_light() + #ylim(4, 15) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+myt_all <- ggarrange(myt1, myt2, myt3, myt4, myt5, myt6, myt7, ncol = 3, nrow = 3, align = "hv")
+myt_all
+#ggsave("submission/Ecography/RF_figs/LM/LM-Mytilaster.png", dpi = 300, width = 11.7, height = 8.14, units = "in")
+
+varhandle::rm.all.but(keep = c("lower_teste"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+#### Low-Midlittoral: Chthamalus bisinuatus
+```{r LowMid C. bisinuatus}
+
+cht_data <- subset(df2, select = c(8, 25:31))
+cht_data <- as.data.frame(cht_data)
+str(cht_data)
+
+# train a default random forest model
+  cht_rf1 <- ranger(
+  formula = C.bisinuatus ~ ., 
+  data = cht_data,
+  num.trees = 2500,
+  importance = "permutation",
+  seed = 4558)
+
+print(cht_rf1)
+(default_rmse <- sqrt(cht_rf1$prediction.error))# get OOB RMSE for further comparison ##
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  mtry = c(2:6),
+  min.node.size = c(1, 3, 5, 10, 15), 
+  replace = c(TRUE, FALSE),                               
+  sample.fraction = c(.5, .63, .8),                       
+  rmse = NA)
+
+# execute full cartesian grid search
+for(i in seq_len(nrow(hyper_grid))) {
+  # fit model for ith hyperparameter combination
+  fit <- ranger(
+    formula         = C.bisinuatus ~ ., 
+    data            = cht_data, 
+    num.trees       = 2500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$min.node.size[i],
+    replace         = hyper_grid$replace[i],
+    sample.fraction = hyper_grid$sample.fraction[i],
+    verbose         = FALSE,
+    seed            = 123,
+    #respect.unordered.factors = F,
+  )
+  # export OOB error 
+  hyper_grid$rmse[i] <- sqrt(fit$prediction.error)}
+
+# assess top 10 models
+hyper_grid %>%
+  arrange(rmse) %>%
+  mutate(perc_gain = (default_rmse - rmse) / default_rmse * 100) %>%
+  head(10)
+
+# re-run model -- as there was no significant improve, go with default parameters ##
+ cht_rf2 <- ranger(
+  formula = C.bisinuatus ~ ., 
+  data = cht_data, 
+  num.trees = 2500,
+  mtry = 2,
+  min.node.size = 5,
+  sample.fraction = .63,
+  replace = T,
+  importance = "permutation",
+  verbose = FALSE,
+  seed  = 1238
+)
+
+print(cht_rf2)
+cht_rf2[["variable.importance"]]
+vip::vip(cht_rf2, num_features = 10, bar = FALSE)
+
+### Partial plots figs:
+cht1 <- cht_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "sst_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "C. bisinuatus", xlab = "SST") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht2 <- cht_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "chla_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "C. bisinuatus", xlab = "Chla") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht3 <- cht_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "fwd_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "C. bisinuatus", xlab = "FwD") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht4 <- cht_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "wf_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "C. bisinuatus", xlab = "WF") +
+        theme_light() + # ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht5 <- cht_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "DNC", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "C. bisinuatus", xlab = "DNC") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht6 <- cht_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "roughness", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "C. bisinuatus", xlab = "roughness") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht7 <- cht_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "incl_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "C. bisinuatus", xlab = "inclination") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht_all <- ggarrange(cht1, cht2, cht3, cht4, cht5, cht6, cht7, ncol = 3, nrow = 3, align = "hv")
+cht_all
+
+#ggsave("submission/Ecography/RF_figs/LM/LM-Chthamalus.png", dpi = 300, width = 11.7, height = 8.14, units = "in")
+
+varhandle::rm.all.but(keep = c("df2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+#### Low-Midlittoral: Phragmatopoma sp. (reef-building polychaete)
+```{r polychaete Phragmatopoma sp.}
+
+worm_data2 <- subset(df2, select = c(9, 25:31))
+worm_data2 <- as.data.frame(worm_data2)
+str(worm_data2)
+
+# train a default random forest model
+  worm_rf1 <- ranger(
+  formula = Phragmatopoma ~ ., 
+  data = worm_data2,
+  num.trees = 2500,
+  importance = "permutation",
+  seed = 128)
+
+print(worm_rf1)
+(default_rmse <- sqrt(worm_rf1$prediction.error))# get OOB RMSE for further comparison ##
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  mtry = c(2:6),
+  min.node.size = c(1, 3, 5, 10, 15), 
+  replace = c(TRUE, FALSE),                               
+  sample.fraction = c(.5, .63, .8),                       
+  rmse = NA)
+
+# execute full cartesian grid search
+for(i in seq_len(nrow(hyper_grid))) {
+  # fit model for ith hyperparameter combination
+  fit <- ranger(
+    formula         = Phragmatopoma ~ ., 
+    data            = worm_data2, 
+    num.trees       = 2500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$min.node.size[i],
+    replace         = hyper_grid$replace[i],
+    sample.fraction = hyper_grid$sample.fraction[i],
+    verbose         = FALSE,
+    seed            = 1583,
+    #respect.unordered.factors = F,
+  )
+  # export OOB error 
+  hyper_grid$rmse[i] <- sqrt(fit$prediction.error)
+}
+
+# assess top 10 models
+hyper_grid %>%
+  arrange(rmse) %>%
+  mutate(perc_gain = (default_rmse - rmse) / default_rmse * 100) %>%
+  head(10)
+
+# re-run model -- as there was no significant improve, go with default parameters ##
+worm_rf2 <- ranger(
+  formula = Phragmatopoma ~ ., 
+  data = worm_data2, 
+  num.trees = 2500,
+  mtry = 2,
+  min.node.size = 5,
+  sample.fraction = .63,
+  replace = TRUE,
+  importance = "permutation",
+  verbose = FALSE,
+  seed  = 888
+)
+
+print(worm_rf2)
+worm_rf2[["variable.importance"]]
+vip::vip(worm_rf2, num_features = 10, bar = FALSE)
+
+### Partial plots figs:
+cht1 <- worm_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "sst_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Phragmatopoma sp.", xlab = "SST") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht2 <- worm_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "chla_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Phragmatopoma sp.", xlab = "Chla") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht3 <- worm_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "fwd_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Phragmatopoma sp.", xlab = "FwD") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht4 <- worm_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "wf_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Phragmatopoma sp.", xlab = "WF") +
+        theme_light() + # ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht5 <- worm_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "DNC", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Phragmatopoma sp.", xlab = "DNC") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht6 <- worm_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "roughness", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Phragmatopoma sp.", xlab = "roughness") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht7 <- worm_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "incl_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Phragmatopoma sp.", xlab = "inclination") +
+        theme_light() + #ylim(3, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+cht_all <- ggarrange(cht1, cht2, cht3, cht4, cht5, cht6, cht7, ncol = 3, nrow = 3, align = "hv")
+cht_all
+
+#ggsave("submission/Ecography/RF_figs/LM/LM-Phragmatopoma.png", dpi = 300, width = 11.7, height = 8.14, units = "in")
+
+varhandle::rm.all.but(keep = c("df2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+### Low-Midlittoral: mussel Perna perna
+```{r mussel P. perna}
+
+perna_data2 <- subset(df2, select = c(7, 25:31))
+perna_data2 <- as.data.frame(perna_data2)
+str(perna_data2)
+
+# train a default random forest model
+  perna_rf1 <- ranger(
+  formula = P.perna ~ ., 
+  data = perna_data2,
+  num.trees = 2500,
+  importance = "permutation",
+  seed = 1288)
+
+print(perna_rf1)
+(default_rmse <- sqrt(perna_rf1$prediction.error))# get OOB RMSE for further comparison ##
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  mtry = c(2:6),
+  min.node.size = c(1, 3, 5, 10, 15), 
+  replace = c(TRUE, FALSE),                               
+  sample.fraction = c(.5, .63, .8),                       
+  rmse = NA)
+
+# execute full cartesian grid search
+for(i in seq_len(nrow(hyper_grid))) {
+  # fit model for ith hyperparameter combination
+  fit <- ranger(
+    formula         = P.perna ~ ., 
+    data            = perna_data2, 
+    num.trees       = 2500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$min.node.size[i],
+    replace         = hyper_grid$replace[i],
+    sample.fraction = hyper_grid$sample.fraction[i],
+    verbose         = FALSE,
+    seed            = 1253,
+    #respect.unordered.factors = F,
+  )
+  # export OOB error 
+  hyper_grid$rmse[i] <- sqrt(fit$prediction.error)
+}
+
+# assess top 10 models
+hyper_grid %>%
+  arrange(rmse) %>%
+  mutate(perc_gain = (default_rmse - rmse) / default_rmse * 100) %>%
+  head(10)
+
+# re-run model -- as there was no significant improve, go with default parameters ##
+perna_rf2 <- ranger(
+  formula = P.perna ~ ., 
+  data = perna_data2, 
+  num.trees = 2500,
+  mtry = 2,
+  min.node.size = 5,
+  sample.fraction = .63,
+  replace = T,
+  importance = "permutation",
+  verbose = FALSE,
+  seed  = 5588
+)
+
+print(perna_rf2)
+perna_rf2[["variable.importance"]]
+vip::vip(perna_rf2, num_features = 10, bar = FALSE)
+
+### Partial plots figs:
+perna1 <- perna_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "sst_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "P. perna", xlab = "SST") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+perna2 <- perna_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "chla_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "P. perna", xlab = "Chla") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+perna3 <- perna_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "fwd_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "P. perna", xlab = "FwD") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+perna4 <- perna_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "wf_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "P. perna", xlab = "WF") +
+        theme_light() +  #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+perna5 <- perna_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "DNC", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "P. perna", xlab = "DNC") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+perna6 <- perna_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "roughness", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "P. perna", xlab = "roughness") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+perna7 <- perna_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "incl_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "P. perna", xlab = "inclination") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+perna_all <- ggarrange(perna1, perna2, perna3, perna4, perna5, perna6, perna7, ncol = 3, nrow = 3, align = "hv")
+perna_all
+
+#ggsave("submission/Ecography/RF_figs/LM/LM-P-perna.png", dpi = 300, width = 11.7, height = 8.14, units = "in")
+       
+varhandle::rm.all.but(keep = c("df2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+### Low-Midlittoral: oysters
+```{r oysters}
+
+oyster_dt <- subset(df2, select = c(6, 25:31))
+oyster_dt <- as.data.frame(oyster_dt)
+str(oyster_dt)
+
+# train a default random forest model
+  oyster_rf1 <- ranger(
+  formula = Crassostrea ~ ., 
+  data = oyster_dt,
+  num.trees = 2500,
+  importance = "permutation",
+  seed = 1288)
+
+print(oyster_rf1)
+(default_rmse <- sqrt(oyster_rf1$prediction.error))# get OOB RMSE for further comparison ##
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  mtry = c(2:6),
+  min.node.size = c(1, 3, 5, 10, 15), 
+  replace = c(TRUE, FALSE),                               
+  sample.fraction = c(.5, .63, .8),                       
+  rmse = NA)
+
+# execute full cartesian grid search
+for(i in seq_len(nrow(hyper_grid))) {
+  # fit model for ith hyperparameter combination
+  fit <- ranger(
+    formula         = Crassostrea ~ ., 
+    data            = oyster_dt, 
+    num.trees       = 2500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$min.node.size[i],
+    replace         = hyper_grid$replace[i],
+    sample.fraction = hyper_grid$sample.fraction[i],
+    verbose         = FALSE,
+    seed            = 1253,
+    #respect.unordered.factors = F,
+  )
+  # export OOB error 
+  hyper_grid$rmse[i] <- sqrt(fit$prediction.error)}
+
+# assess top 10 models
+hyper_grid %>%
+  arrange(rmse) %>%
+  mutate(perc_gain = (default_rmse - rmse) / default_rmse * 100) %>%
+  head(10)
+
+# re-run model -- as there was no significant improve, go with default parameters ##
+oyster_rf2 <- ranger(
+  formula = Crassostrea ~ ., 
+  data = oyster_dt, 
+  num.trees = 2500,
+  mtry = 2,
+  min.node.size = 5,
+  sample.fraction = .63,
+  replace = T,
+  importance = "permutation",
+  verbose = FALSE,
+  seed  = 5588)
+
+print(oyster_rf2)
+oyster_rf2[["variable.importance"]]
+vip::vip(oyster_rf2, num_features = 10, bar = FALSE)
+
+### Partial plots figs:
+oyster1 <- oyster_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "sst_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Oysters", xlab = "SST") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+oyster2 <- oyster_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "chla_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Oysters", xlab = "Chla") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+oyster3 <- oyster_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "fwd_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Oysters", xlab = "FwD") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+oyster4 <- oyster_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "wf_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Oysters", xlab = "WF") +
+        theme_light() +  #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+oyster5 <- oyster_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "DNC", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Oysters", xlab = "DNC") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+oyster6 <- oyster_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "roughness", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Oysters", xlab = "roughness") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+oyster7 <- oyster_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "incl_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Oysters", xlab = "inclination") +
+        theme_light() + #ylim(2, 10) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+oyster_all <- ggarrange(oyster1, oyster2, oyster3, oyster4, oyster5, oyster6, oyster7, ncol = 3, nrow = 3, align = "hv")
+oyster_all
+
+#ggsave("RF_figs/LowMid-Oysters.png", dpi = 300, width = 11.7, height = 8.14, units = "in")
+       
+varhandle::rm.all.but(keep = c("df2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+### Low-Midlittoral: bare rock
+```{r bare rock}
+
+bareLow_data <- subset(df2, select = c(21, 25:31))
+bareLow_data <- as.data.frame(bareLow_data)
+str(bareLow_data)
+
+# train a default random forest model
+  bare_rf1 <- ranger(
+  formula = bare_rock ~ ., 
+  data = bareLow_data,
+  num.trees = 2500,
+  importance = "permutation",
+  seed = 1288)
+
+print(bare_rf1)
+(default_rmse <- sqrt(bare_rf1$prediction.error))# get OOB RMSE for further comparison ##
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  mtry = c(2:6),
+  min.node.size = c(1, 3, 5, 10, 15), 
+  replace = c(TRUE, FALSE),                               
+  sample.fraction = c(.5, .63, .8),                       
+  rmse = NA)
+
+# execute full cartesian grid search
+for(i in seq_len(nrow(hyper_grid))) {
+  # fit model for ith hyperparameter combination
+  fit <- ranger(
+    formula         = bare_rock ~ ., 
+    data            = bareLow_data, 
+    num.trees       = 2500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$min.node.size[i],
+    replace         = hyper_grid$replace[i],
+    sample.fraction = hyper_grid$sample.fraction[i],
+    verbose         = FALSE,
+    seed            = 1253,
+    #respect.unordered.factors = F,
+  )
+  # export OOB error 
+  hyper_grid$rmse[i] <- sqrt(fit$prediction.error)}
+
+# assess top 10 models
+hyper_grid %>%
+  arrange(rmse) %>%
+  mutate(perc_gain = (default_rmse - rmse) / default_rmse * 100) %>%
+  head(10)
+
+# re-run model -- as there was no significant improve, go with default parameters ##
+bare_rf2 <- ranger(
+  formula = bare_rock ~ ., 
+  data = bareLow_data, 
+  num.trees = 2500,
+  mtry = 2,
+  min.node.size = 5,
+  sample.fraction = .63,
+  replace = T,
+  importance = "permutation",
+  verbose = FALSE,
+  seed  = 5588)
+
+print(bare_rf2)
+bare_rf2[["variable.importance"]]
+vip::vip(bare_rf2, num_features = 10, bar = FALSE)
+
+### Partial plots figs:
+bare1 <- bare_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "sst_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Bare rock", xlab = "SST") +
+        theme_light()  + #ylim(30,55) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+bare2 <- bare_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "chla_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Bare rock", xlab = "Chla") +
+        theme_light() + #ylim(30,55) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+bare3 <- bare_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "fwd_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Bare rock", xlab = "FwD") +
+        theme_light() +  #ylim(30,55) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+bare4 <- bare_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "wf_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Bare rock", xlab = "WF") +
+        theme_light() +  #ylim(30,55) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+bare5 <- bare_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "DNC", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Bare rock", xlab = "DNC") +
+        theme_light() +  #ylim(30,55) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+bare6 <- bare_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "roughness", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Bare rock", xlab = "roughness") +
+        theme_light() + # ylim(30,55) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+bare7 <- bare_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "incl_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Bare rock", xlab = "inclination") +
+        theme_light() +  #ylim(30,55) +
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+bare_all <- ggarrange(bare1, bare2, bare3, bare4, bare5, bare6, bare7, ncol = 3, nrow = 3, align = "hv")
+bare_all
+
+#ggsave("submission/Ecography/RF_figs/LM/LM-bare-rock.png", dpi = 300, width = 11.7, height = 8.14, units = "in")
+
+varhandle::rm.all.but(keep = c("df2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+#### Low-Midlittoral: Turf-forming algae
+```{r Low-midlittoral turf-forming algae}
+
+## Creating a variable called 'turf' = summing up ACA, CCA, foliose and filamentous algae) ##
+df2$turf <- (df2$ACA + df2$filamentous + df2$foliose + df2$CCA)
+
+## sorting data
+turf_data <- subset(df2, select = c(35, 25:31))
+turf_data <- as.data.frame(turf_data)
+str(turf_data)
+
+# train a default random forest model
+turf_rf1 <- ranger(turf ~.,
+                  data = turf_data,
+                  seed = 1143,
+                  num.trees = 2500,
+                  importance = "permutation")
+
+print(turf_rf1)
+(default_rmse <- sqrt(turf_rf1$prediction.error))# get OOB RMSE for further comparison ##
+
+# create hyperparameter grid
+hyper_grid <- expand.grid(
+  mtry = c(2:6),
+  min.node.size = c(1, 3, 5, 10, 15), 
+  replace = c(TRUE, FALSE),                               
+  sample.fraction = c(.5, .63, .8),                       
+  rmse = NA)
+
+# execute full cartesian grid search
+for(i in seq_len(nrow(hyper_grid))) {
+  # fit model for ith hyperparameter combination
+  fit <- ranger(
+    formula         = turf ~ ., 
+    data            = turf_data, 
+    num.trees       = 2500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$min.node.size[i],
+    replace         = hyper_grid$replace[i],
+    sample.fraction = hyper_grid$sample.fraction[i],
+    verbose         = FALSE,
+    seed            = 1143,
+    #respect.unordered.factors = F,
+  )
+  # export OOB error 
+  hyper_grid$rmse[i] <- sqrt(fit$prediction.error)
+}
+
+# assess top 10 models
+hyper_grid %>%
+  arrange(rmse) %>%
+  mutate(perc_gain = (default_rmse - rmse) / default_rmse * 100) %>%
+  head(10)
+
+# re-run model -- as there was no significant improve, go with default parameters ##
+turf_rf2 <- ranger(
+  formula = turf ~ ., 
+  data = turf_data, 
+  num.trees = 2500,
+  mtry = 2,
+  min.node.size = 5,
+  sample.fraction = .63,
+  replace = TRUE,
+  importance = "permutation",
+  verbose = FALSE,
+  seed  = 5213)
+
+print(turf_rf2)
+turf_rf2[["variable.importance"]]
+vip::vip(turf_rf2, num_features = 10, bar = FALSE)
+
+### Partial plots figs:
+turf1 <- turf_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "sst_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Turf-forming algae", xlab = "SST") +
+        theme_light() +  #ylim(35, 60)+
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+turf2 <- turf_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "chla_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Turf-forming algae", xlab = "Chla") +
+        theme_light() +  #ylim(35, 60)+
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+turf3 <- turf_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "fwd_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Turf-forming algae", xlab = "FwD") +
+        theme_light() +  #ylim(35, 60)+
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+turf4 <- turf_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "wf_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Turf-forming algae", xlab = "WF") +
+        theme_light() + #ylim(35, 60)+
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+
+turf5 <- turf_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "DNC", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Turf-forming algae", xlab = "DNC") +
+        theme_light() + #ylim(35, 60)+
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+turf6 <- turf_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "roughness", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Turf-forming algae", xlab = "roughness") +
+        theme_light() +  #ylim(35, 60)+
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+turf7 <- turf_rf2 %>%  # the %>% operator is read as "and then"
+        partial(pred.var = "incl_mean", grid.resolution = 20) %>%
+        autoplot(smooth = TRUE, ylab = "Turf-forming algae", xlab = "inclination") +
+        theme_light() + #ylim(35, 60)+
+  theme(axis.text.x = element_text(size=14, color="black"), 
+        axis.text.y = element_text(size=14, color="black"),
+        axis.title.x = element_text(color="black", size=15),
+        axis.title.y = element_text(color="black", size=15))+
+        ggtitle("")
+
+turf_all <- ggarrange(turf1, turf2, turf3, turf4, turf5, turf6, turf7, ncol = 3, nrow = 3, align = "hv")
+turf_all
+
+#ggsave("RF_figs/Turf-forming-algae-InfraFringe.png", dpi = 300, width = 11.7, height = 8.14, units = "in") 
+
+varhandle::rm.all.but(keep = c("df2"), envir=.GlobalEnv, keep_functions = F, gc_limit = 100, regex = "auto")
+```
+
+## The end =)
